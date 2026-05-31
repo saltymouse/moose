@@ -1,4 +1,4 @@
-module moose
+module github.com/saltymouse/moose
 
 go 1.26.2
 
