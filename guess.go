@@ -61,7 +61,7 @@ func GuessShow(dir string, s Scraper) (*Show, error) {
 		for _, r := range results {
 			if strings.HasPrefix(r.Show.Premiered, year) {
 				show := r.Show
-				fmt.Printf("Matched: %s  (TVmaze ID %d, premiered %s)\n\n",
+				fmt.Printf("Matched: %s  (ID %d, premiered %s)\n\n",
 					show.Name, show.ID, show.Premiered)
 				return &show, nil
 			}
