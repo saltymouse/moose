@@ -38,7 +38,7 @@ func RunWizard(f WizardFlags) error {
 	if scraperName == "" {
 		scraperName = prefs.Scraper
 		if scraperName == "" {
-			scraperName = "tvmaze" // sensible default pre-selection
+			scraperName = "tvmaze"
 		}
 		if err := askScraper(&scraperName); err != nil {
 			return err
@@ -58,16 +58,16 @@ func RunWizard(f WizardFlags) error {
 		fmt.Printf("  export TMDB_API_KEY=%s\n\n", tmdbKey)
 	}
 
-	// --- Save prefs ---
 	_ = SavePrefs(Prefs{Lang: lang, Scraper: scraperName})
 
-	// --- Build scraper ---
 	s, err := newScraper(scraperName, lang, tmdbKey)
 	if err != nil {
 		return err
 	}
 
-	// --- Step 4: Resolve show ---
+	// --- Remote phase ---
+	fmt.Println("── Remote ──────────────────────────────────────────")
+
 	var show *Show
 	switch {
 	case f.ShowID != 0:
@@ -91,24 +91,84 @@ func RunWizard(f WizardFlags) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Using: %s  (ID %d, scraper: %s)\n\n", show.Name, show.ID, s.IDType())
 
-	// --- Step 5: Fetch episodes ---
 	episodes, err := s.FetchEpisodes(show.ID)
 	if err != nil {
 		return fmt.Errorf("episode fetch: %w", err)
 	}
-	fmt.Printf("Fetched %d episodes\n\n", len(episodes))
+	fmt.Printf("  Show:     %s\n", show.Name)
+	fmt.Printf("  Scraper:  %s  ·  Language: %s\n", s.IDType(), lang)
+	fmt.Printf("  Episodes: %d fetched\n", len(episodes))
 
 	lookup := buildLookup(episodes)
 
-	// --- Step 6: Plan renames ---
+	// --- Local phase ---
+	fmt.Println("\n── Local ───────────────────────────────────────────")
+	fmt.Printf("  Directory: %s\n\n", f.Dir)
+
+	// Pre-scan: count video files and parse results before doing anything.
+	type scanResult struct {
+		path      string
+		fe        FileEpisode
+		parsed    bool
+	}
+	var scanResults []scanResult
+	filepath.Walk(f.Dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if !videoExts[ext] {
+			return nil
+		}
+		fe, ok := ParseFilename(filepath.Base(path))
+		scanResults = append(scanResults, scanResult{path, fe, ok})
+		return nil
+	})
+
+	if len(scanResults) == 0 {
+		fmt.Println("  ✗ No video files found.")
+		fmt.Println("\nNothing to do.")
+		return nil
+	}
+
+	var parsedCount, unparsedCount int
+	for _, r := range scanResults {
+		if r.parsed {
+			parsedCount++
+		} else {
+			unparsedCount++
+		}
+	}
+
+	fmt.Printf("  Video files found: %d\n", len(scanResults))
+	if parsedCount > 0 {
+		fmt.Printf("  ✓ Matched to episode pattern: %d\n", parsedCount)
+	}
+	if unparsedCount > 0 {
+		fmt.Printf("  ✗ Could not parse episode number: %d\n", unparsedCount)
+		for _, r := range scanResults {
+			if !r.parsed {
+				fmt.Printf("      %s\n", filepath.Base(r.path))
+			}
+		}
+	}
+
+	if parsedCount == 0 {
+		fmt.Println("\n  No files could be matched to episode data.")
+		fmt.Println("  Check that filenames contain an episode number (S01E01, EP01, - 01, etc.)")
+		fmt.Println("\nNothing to do.")
+		return nil
+	}
+	fmt.Println()
+
+	// --- Rename phase ---
 	ops, alreadyOK, noData := planRenames(f.Dir, show, lookup)
 
 	if len(ops) == 0 && alreadyOK > 0 {
-		fmt.Printf("All %d files already correctly named.\n\n", alreadyOK)
+		fmt.Printf("  All %d files already correctly named.\n\n", alreadyOK)
 	} else if len(ops) > 0 {
-		fmt.Printf("Rename preview (%d of %d shown):\n\n", min(3, len(ops)), len(ops))
+		fmt.Printf("  Rename preview (%d of %d shown):\n\n", min(3, len(ops)), len(ops))
 		previewRenames(ops, 3)
 		if noData > 0 {
 			fmt.Printf("  (%d files skipped — no scraper match)\n\n", noData)
@@ -120,12 +180,10 @@ func RunWizard(f WizardFlags) error {
 			return nil
 		}
 
-		// --- Step 7: Write revert file BEFORE touching anything ---
 		if err := WriteRevertFile(f.Dir, ops); err != nil {
 			return fmt.Errorf("could not write revert file: %w", err)
 		}
 
-		// --- Step 8: Apply renames ---
 		var renameCount int
 		for _, op := range ops {
 			if err := os.Rename(op.OldPath, op.NewPath); err != nil {
@@ -134,16 +192,31 @@ func RunWizard(f WizardFlags) error {
 				renameCount++
 			}
 		}
-		fmt.Printf("Renamed %d files.\n\n", renameCount)
+		fmt.Printf("  Renamed %d files.\n\n", renameCount)
 	}
 
-	// --- Step 9: Write NFOs ---
-	fmt.Println("── NFO ─────────────────────────────────────────────")
-	nfoCount, nfoSkipped, nfoMissing, nfoUnparsed := writeNFOs(f.Dir, show, lookup, s.IDType(), f.Force, false)
+	// --- NFO phase ---
+	nfoCount, nfoSkipped, nfoMissing, _ := writeNFOs(f.Dir, show, lookup, s.IDType(), f.Force, false)
 
-	// --- Step 10: Final confirmation ---
-	fmt.Printf("\n%d NFOs written, %d skipped (existing), %d not matched, %d unparsed\n\n",
-		nfoCount, nfoSkipped, nfoMissing, nfoUnparsed)
+	// --- Final confirmation ---
+	fmt.Printf("\n── Summary ─────────────────────────────────────────\n")
+	fmt.Printf("  NFOs written:  %d\n", nfoCount)
+	if nfoSkipped > 0 {
+		fmt.Printf("  Already exist: %d  (use --force to overwrite)\n", nfoSkipped)
+	}
+	if nfoMissing > 0 {
+		fmt.Printf("  Not matched:   %d\n", nfoMissing)
+	}
+	if unparsedCount > 0 {
+		fmt.Printf("  Unparsed:      %d\n", unparsedCount)
+	}
+	fmt.Println()
+
+	if nfoCount == 0 && nfoSkipped > 0 {
+		fmt.Println("  All NFOs already up to date. Run with --force to refresh.")
+		DeleteRevertFile(f.Dir)
+		return nil
+	}
 
 	var confirmed bool
 	err = huh.NewConfirm().
@@ -173,7 +246,6 @@ func askLang(lang *string) error {
 		huh.NewOption("Chinese — Simplified (zh-CN)", "zh-CN"),
 		huh.NewOption("Other (type below)", "__other__"),
 	}
-	// Pre-select the saved value if it matches an option.
 	initial := *lang
 	found := false
 	for _, o := range options {
@@ -269,7 +341,6 @@ func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 		}
 		fe, ok := ParseFilename(filepath.Base(path))
 		if !ok {
-			fmt.Printf("  ? unparsed:  %s\n", filepath.Base(path))
 			unparsed++
 			return nil
 		}
