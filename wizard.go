@@ -200,6 +200,14 @@ func RunWizard(f WizardFlags) error {
 	forceNFO := f.Force || len(ops) > 0
 	nfoCount, nfoSkipped, nfoMissing, _ := writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
 
+	// --- Image phase ---
+	fmt.Println("\n── Images ──────────────────────────────────────────")
+	DownloadShowImages(f.Dir, show, f.Force)
+	imgDown, imgSkip, imgFail := DownloadEpisodeThumbs(f.Dir, show, lookup, f.Force)
+	if imgDown == 0 && imgSkip > 0 {
+		fmt.Printf("  %d thumbs already present\n", imgSkip)
+	}
+
 	// --- Final confirmation ---
 	fmt.Printf("\n── Summary ─────────────────────────────────────────\n")
 	fmt.Printf("  NFOs written:  %d\n", nfoCount)
@@ -211,6 +219,13 @@ func RunWizard(f WizardFlags) error {
 	}
 	if unparsedCount > 0 {
 		fmt.Printf("  Unparsed:      %d\n", unparsedCount)
+	}
+	if imgDown > 0 || imgFail > 0 {
+		fmt.Printf("  Images:        %d downloaded", imgDown)
+		if imgFail > 0 {
+			fmt.Printf(", %d failed", imgFail)
+		}
+		fmt.Println()
 	}
 	fmt.Println()
 

@@ -24,6 +24,8 @@ type Show struct {
 	OriginalLanguage string   // ISO 639-1 code; populated by TMDb only
 	Network          *Network `json:"network"`
 	WebChannel       *Network `json:"webChannel"`
+	PosterURL        string   // populated by both scrapers
+	FanartURL        string   // populated by TMDb only
 }
 
 func (s *Show) NetworkName() string {
@@ -65,14 +67,47 @@ type TVmazeScraper struct {
 
 func (t *TVmazeScraper) IDType() string { return "tvmaze" }
 
+// tvmazeImage is the nested image object TVmaze returns on shows and search results.
+type tvmazeImage struct {
+	Medium   string `json:"medium"`
+	Original string `json:"original"`
+}
+
 func (t *TVmazeScraper) SearchShows(query string) ([]SearchResult, error) {
-	var results []SearchResult
-	return results, get(tvmazeBase+"/search/shows?q="+url.QueryEscape(query), &results)
+	var raw []struct {
+		Score float64 `json:"score"`
+		Show  struct {
+			Show
+			Image *tvmazeImage `json:"image"`
+		} `json:"show"`
+	}
+	if err := get(tvmazeBase+"/search/shows?q="+url.QueryEscape(query), &raw); err != nil {
+		return nil, err
+	}
+	results := make([]SearchResult, len(raw))
+	for i, r := range raw {
+		s := r.Show.Show
+		if r.Show.Image != nil {
+			s.PosterURL = r.Show.Image.Original
+		}
+		results[i] = SearchResult{Score: r.Score, Show: s}
+	}
+	return results, nil
 }
 
 func (t *TVmazeScraper) FetchShow(id int) (*Show, error) {
-	var show Show
-	return &show, get(fmt.Sprintf("%s/shows/%d", tvmazeBase, id), &show)
+	var raw struct {
+		Show
+		Image *tvmazeImage `json:"image"`
+	}
+	if err := get(fmt.Sprintf("%s/shows/%d", tvmazeBase, id), &raw); err != nil {
+		return nil, err
+	}
+	show := raw.Show
+	if raw.Image != nil {
+		show.PosterURL = raw.Image.Original
+	}
+	return &show, nil
 }
 
 func (t *TVmazeScraper) FetchEpisodes(showID int) ([]Episode, error) {

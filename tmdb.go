@@ -9,6 +9,13 @@ import (
 const tmdbBase      = "https://api.themoviedb.org/3"
 const tmdbImageBase = "https://image.tmdb.org/t/p/original"
 
+func tmdbImageURL(path string) string {
+	if path == "" {
+		return ""
+	}
+	return tmdbImageBase + path
+}
+
 // TMDbScraper implements Scraper against api.themoviedb.org.
 // Lang should be a BCP-47 language tag, e.g. "ja", "en-GB", "en-US".
 type TMDbScraper struct {
@@ -36,6 +43,8 @@ type tmdbSearchResp struct {
 		FirstAirDate     string `json:"first_air_date"`
 		Overview         string `json:"overview"`
 		OriginalLanguage string `json:"original_language"`
+		PosterPath       string `json:"poster_path"`
+		BackdropPath     string `json:"backdrop_path"`
 	} `json:"results"`
 }
 
@@ -45,6 +54,8 @@ type tmdbShowResp struct {
 	FirstAirDate     string `json:"first_air_date"`
 	Overview         string `json:"overview"`
 	OriginalLanguage string `json:"original_language"`
+	PosterPath       string `json:"poster_path"`
+	BackdropPath     string `json:"backdrop_path"`
 	Networks         []struct {
 		Name string `json:"name"`
 	} `json:"networks"`
@@ -84,6 +95,8 @@ func (t *TMDbScraper) SearchShows(query string) ([]SearchResult, error) {
 				Premiered:        r.FirstAirDate,
 				Summary:          r.Overview,
 				OriginalLanguage: r.OriginalLanguage,
+				PosterURL:        tmdbImageURL(r.PosterPath),
+				FanartURL:        tmdbImageURL(r.BackdropPath),
 			},
 		}
 	}
@@ -101,6 +114,8 @@ func (t *TMDbScraper) FetchShow(id int) (*Show, error) {
 		Premiered:        resp.FirstAirDate,
 		Summary:          resp.Overview,
 		OriginalLanguage: resp.OriginalLanguage,
+		PosterURL:        tmdbImageURL(resp.PosterPath),
+		FanartURL:        tmdbImageURL(resp.BackdropPath),
 	}
 	if len(resp.Networks) > 0 {
 		show.Network = &Network{Name: resp.Networks[0].Name}
