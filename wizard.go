@@ -203,9 +203,12 @@ func RunWizard(f WizardFlags) error {
 	// --- Image phase ---
 	fmt.Println("\n── Images ──────────────────────────────────────────")
 	DownloadShowImages(f.Dir, show, f.Force)
-	imgDown, imgSkip, imgFail := DownloadEpisodeThumbs(f.Dir, show, lookup, f.Force)
-	if imgDown == 0 && imgSkip > 0 {
+	imgDown, imgSkip, imgFail, imgNone := DownloadEpisodeThumbs(f.Dir, show, lookup, f.Force)
+	switch {
+	case imgDown == 0 && imgSkip > 0:
 		fmt.Printf("  %d thumbs already present\n", imgSkip)
+	case imgDown == 0 && imgSkip == 0 && imgFail == 0 && imgNone > 0:
+		fmt.Printf("  No episode stills available from %s\n", s.IDType())
 	}
 
 	// --- Final confirmation ---

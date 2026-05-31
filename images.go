@@ -63,7 +63,7 @@ func DownloadShowImages(dir string, show *Show, force bool) {
 
 // DownloadEpisodeThumbs walks dir, finds video files, and downloads a -thumb.jpg
 // alongside each one using the episode's image URL. Runs concurrently.
-func DownloadEpisodeThumbs(dir string, show *Show, lookup map[int]map[int]*Episode, force bool) (downloaded, skipped, failed int) {
+func DownloadEpisodeThumbs(dir string, show *Show, lookup map[int]map[int]*Episode, force bool) (downloaded, skipped, failed, noStill int) {
 	type work struct {
 		url      string
 		destPath string
@@ -84,6 +84,7 @@ func DownloadEpisodeThumbs(dir string, show *Show, lookup map[int]map[int]*Episo
 		}
 		ep := lookup[fe.Season][fe.Episodes[0]]
 		if ep == nil || ep.Image == nil || ep.Image.Original == "" {
+			noStill++
 			return nil
 		}
 		base := strings.TrimSuffix(path, ext)
