@@ -31,10 +31,11 @@ func (t *TMDbScraper) endpoint(path string, extra ...string) string {
 
 type tmdbSearchResp struct {
 	Results []struct {
-		ID           int    `json:"id"`
-		Name         string `json:"name"`
-		FirstAirDate string `json:"first_air_date"`
-		Overview     string `json:"overview"`
+		ID               int    `json:"id"`
+		Name             string `json:"name"`
+		FirstAirDate     string `json:"first_air_date"`
+		Overview         string `json:"overview"`
+		OriginalLanguage string `json:"original_language"`
 	} `json:"results"`
 }
 
@@ -78,10 +79,11 @@ func (t *TMDbScraper) SearchShows(query string) ([]SearchResult, error) {
 		results[i] = SearchResult{
 			Score: float64(len(resp.Results) - i),
 			Show: Show{
-				ID:        r.ID,
-				Name:      r.Name,
-				Premiered: r.FirstAirDate,
-				Summary:   r.Overview,
+				ID:               r.ID,
+				Name:             r.Name,
+				Premiered:        r.FirstAirDate,
+				Summary:          r.Overview,
+				OriginalLanguage: r.OriginalLanguage,
 			},
 		}
 	}
