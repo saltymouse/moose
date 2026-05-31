@@ -39,8 +39,11 @@ func sanitizeTitle(s string) string {
 	return strings.TrimSpace(r.Replace(s))
 }
 
+var subtitleExts = []string{".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx"}
+
 // planRenames walks dir and returns one RenameOp per file whose name differs
-// from the canonical target. Files that already match are counted as skipped.
+// from the canonical target. Subtitle files with matching base names are
+// included automatically. Files that already match are counted as skipped.
 func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops []RenameOp, alreadyOK, noData int) {
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -62,12 +65,25 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 		want := targetName(show, ep, fe, ext)
 		if filepath.Base(path) == want {
 			alreadyOK++
-			return nil
+		} else {
+			ops = append(ops, RenameOp{
+				OldPath: path,
+				NewPath: filepath.Join(filepath.Dir(path), want),
+			})
 		}
-		ops = append(ops, RenameOp{
-			OldPath: path,
-			NewPath: filepath.Join(filepath.Dir(path), want),
-		})
+		// Check for co-located subtitle files with the same base name.
+		base := strings.TrimSuffix(path, ext)
+		wantBase := strings.TrimSuffix(want, ext)
+		for _, subExt := range subtitleExts {
+			oldSub := base + subExt
+			if _, serr := os.Stat(oldSub); serr != nil {
+				continue // subtitle file doesn't exist
+			}
+			newSub := filepath.Join(filepath.Dir(path), wantBase+subExt)
+			if oldSub != newSub {
+				ops = append(ops, RenameOp{OldPath: oldSub, NewPath: newSub})
+			}
+		}
 		return nil
 	})
 	return
