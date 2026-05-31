@@ -139,11 +139,11 @@ func RunWizard(f WizardFlags) error {
 
 	// --- Step 9: Write NFOs ---
 	fmt.Println("── NFO ─────────────────────────────────────────────")
-	nfoCount, nfoSkipped, nfoMissing := writeNFOs(f.Dir, show, lookup, s.IDType(), f.Force, false)
+	nfoCount, nfoSkipped, nfoMissing, nfoUnparsed := writeNFOs(f.Dir, show, lookup, s.IDType(), f.Force, false)
 
 	// --- Step 10: Final confirmation ---
-	fmt.Printf("\n%d NFOs written, %d skipped (existing), %d not matched\n\n",
-		nfoCount, nfoSkipped, nfoMissing)
+	fmt.Printf("\n%d NFOs written, %d skipped (existing), %d not matched, %d unparsed\n\n",
+		nfoCount, nfoSkipped, nfoMissing, nfoUnparsed)
 
 	var confirmed bool
 	err = huh.NewConfirm().
@@ -257,7 +257,7 @@ func buildLookup(episodes []Episode) map[int]map[int]*Episode {
 }
 
 func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
-	idType string, force, dryRun bool) (written, skipped, notFound int) {
+	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int) {
 
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -269,6 +269,8 @@ func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 		}
 		fe, ok := ParseFilename(filepath.Base(path))
 		if !ok {
+			fmt.Printf("  ? unparsed:  %s\n", filepath.Base(path))
+			unparsed++
 			return nil
 		}
 		if fe.SeasonInferred {

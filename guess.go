@@ -52,7 +52,7 @@ func GuessShow(dir string, s Scraper) (*Show, error) {
 	// Single result — use it without asking.
 	if len(results) == 1 {
 		show := results[0].Show
-		fmt.Printf("Found: %s  (TVmaze ID %d)\n\n", show.Name, show.ID)
+		fmt.Printf("Found: %s  (ID %d)\n\n", show.Name, show.ID)
 		return &show, nil
 	}
 
@@ -98,7 +98,7 @@ func pickShow(results []SearchResult) (*Show, error) {
 	for _, r := range results {
 		if r.Show.ID == selectedID {
 			show := r.Show
-			fmt.Printf("\nUsing: %s  (TVmaze ID %d)\n\n", show.Name, show.ID)
+			fmt.Printf("\nUsing: %s  (ID %d)\n\n", show.Name, show.ID)
 			return &show, nil
 		}
 	}

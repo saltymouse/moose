@@ -26,6 +26,8 @@ var fallbacks = []struct {
 	re   *regexp.Regexp
 	desc string
 }{
+	// "EP01" or "EP1" — common in Asian web-rips (no season prefix)
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
 	// "E05" without a season prefix, e.g. "Show Name E05"
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
 	// "- 01"  or  "_01"  (separator + number near end)

@@ -114,7 +114,7 @@ func main() {
 	}
 
 	fmt.Println("── NFO ─────────────────────────────────────────────")
-	written, skipped, notFound := writeNFOs(dir, show, lookup, s.IDType(), *force, *dryRun)
+	written, skipped, notFound, _ := writeNFOs(dir, show, lookup, s.IDType(), *force, *dryRun)
 
 	// Also track unparsed files in flag mode (wizard mode skips them silently).
 	unparsed := countUnparsed(dir)
