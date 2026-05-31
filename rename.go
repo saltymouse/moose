@@ -39,7 +39,8 @@ func sanitizeTitle(s string) string {
 	return strings.TrimSpace(r.Replace(s))
 }
 
-var subtitleExts = []string{".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx"}
+// companionExts are renamed alongside a video file when they share the same base name.
+var companionExts = []string{".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx", ".nfo"}
 
 // planRenames walks dir and returns one RenameOp per file whose name differs
 // from the canonical target. Subtitle files with matching base names are
@@ -74,7 +75,7 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 		// Check for co-located subtitle files with the same base name.
 		base := strings.TrimSuffix(path, ext)
 		wantBase := strings.TrimSuffix(want, ext)
-		for _, subExt := range subtitleExts {
+		for _, subExt := range companionExts {
 			oldSub := base + subExt
 			if _, serr := os.Stat(oldSub); serr != nil {
 				continue // subtitle file doesn't exist

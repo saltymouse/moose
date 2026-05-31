@@ -195,7 +195,10 @@ func RunWizard(f WizardFlags) error {
 	}
 
 	// --- NFO phase ---
-	nfoCount, nfoSkipped, nfoMissing, _ := writeNFOs(f.Dir, show, lookup, s.IDType(), f.Force, false)
+	// If renames were applied, force-write NFOs: the old NFO was renamed to the
+	// new path alongside the video, so its content is stale and must be refreshed.
+	forceNFO := f.Force || len(ops) > 0
+	nfoCount, nfoSkipped, nfoMissing, _ := writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
 
 	// --- Final confirmation ---
 	fmt.Printf("\n── Summary ─────────────────────────────────────────\n")
