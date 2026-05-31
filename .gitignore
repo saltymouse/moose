@@ -1,0 +1,8 @@
+# binary
+moose
+
+# test output
+*.nfo.test
+
+# macOS
+.DS_Store
