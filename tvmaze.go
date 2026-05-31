@@ -17,12 +17,13 @@ type Network struct {
 }
 
 type Show struct {
-	ID         int      `json:"id"`
-	Name       string   `json:"name"`
-	Premiered  string   `json:"premiered"`
-	Summary    string   `json:"summary"`
-	Network    *Network `json:"network"`
-	WebChannel *Network `json:"webChannel"`
+	ID               int      `json:"id"`
+	Name             string   `json:"name"`
+	Premiered        string   `json:"premiered"`
+	Summary          string   `json:"summary"`
+	OriginalLanguage string   // ISO 639-1 code; populated by TMDb only
+	Network          *Network `json:"network"`
+	WebChannel       *Network `json:"webChannel"`
 }
 
 func (s *Show) NetworkName() string {

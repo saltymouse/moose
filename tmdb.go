@@ -39,11 +39,12 @@ type tmdbSearchResp struct {
 }
 
 type tmdbShowResp struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name"`
-	FirstAirDate string `json:"first_air_date"`
-	Overview     string `json:"overview"`
-	Networks     []struct {
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	FirstAirDate     string `json:"first_air_date"`
+	Overview         string `json:"overview"`
+	OriginalLanguage string `json:"original_language"`
+	Networks         []struct {
 		Name string `json:"name"`
 	} `json:"networks"`
 	Seasons []struct {
@@ -93,10 +94,11 @@ func (t *TMDbScraper) FetchShow(id int) (*Show, error) {
 		return nil, err
 	}
 	show := &Show{
-		ID:        resp.ID,
-		Name:      resp.Name,
-		Premiered: resp.FirstAirDate,
-		Summary:   resp.Overview,
+		ID:               resp.ID,
+		Name:             resp.Name,
+		Premiered:        resp.FirstAirDate,
+		Summary:          resp.Overview,
+		OriginalLanguage: resp.OriginalLanguage,
 	}
 	if len(resp.Networks) > 0 {
 		show.Network = &Network{Name: resp.Networks[0].Name}

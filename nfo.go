@@ -17,6 +17,7 @@ type EpisodeNFO struct {
 	Aired     string   `xml:"aired"`
 	Runtime   int      `xml:"runtime,omitempty"`
 	Studio    string   `xml:"studio,omitempty"`
+	Tags      []string `xml:"tag,omitempty"`
 }
 
 type UniqueID struct {
@@ -36,6 +37,9 @@ func WriteNFO(path string, show *Show, ep *Episode, idType string) error {
 		Aired:     ep.Airdate,
 		Runtime:   ep.Runtime,
 		Studio:    show.NetworkName(),
+	}
+	if show.OriginalLanguage != "" {
+		nfo.Tags = []string{LanguageTag(show.OriginalLanguage)}
 	}
 	f, err := os.Create(path)
 	if err != nil {
