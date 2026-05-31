@@ -168,14 +168,12 @@ func RunWizard(f WizardFlags) error {
 	if len(ops) == 0 && alreadyOK > 0 {
 		fmt.Printf("  All %d files already correctly named.\n\n", alreadyOK)
 	} else if len(ops) > 0 {
-		fmt.Printf("  Rename preview (%d of %d shown):\n\n", min(3, len(ops)), len(ops))
-		previewRenames(ops, 3)
 		if noData > 0 {
 			fmt.Printf("  (%d files skipped — no scraper match)\n\n", noData)
 		}
 
 		if f.DryRun {
-			fmt.Println("-- dry run: full rename list --")
+			fmt.Printf("  Would rename %d files:\n\n", len(ops))
 			previewRenames(ops, len(ops))
 			return nil
 		}
@@ -187,8 +185,9 @@ func RunWizard(f WizardFlags) error {
 		var renameCount int
 		for _, op := range ops {
 			if err := os.Rename(op.OldPath, op.NewPath); err != nil {
-				fmt.Printf("  ✗ rename failed: %s: %v\n", filepath.Base(op.OldPath), err)
+				fmt.Printf("  ✗ %s\n    failed: %v\n", filepath.Base(op.OldPath), err)
 			} else {
+				fmt.Printf("  %s\n  → %s\n\n", filepath.Base(op.OldPath), filepath.Base(op.NewPath))
 				renameCount++
 			}
 		}
