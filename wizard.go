@@ -108,9 +108,9 @@ func RunWizard(f WizardFlags) error {
 
 	// Pre-scan: count video files and parse results before doing anything.
 	type scanResult struct {
-		path      string
-		fe        FileEpisode
-		parsed    bool
+		path   string
+		fe     FileEpisode
+		parsed bool
 	}
 	var scanResults []scanResult
 	filepath.Walk(f.Dir, func(path string, info os.FileInfo, err error) error {
@@ -160,48 +160,46 @@ func RunWizard(f WizardFlags) error {
 		fmt.Println("\nNothing to do.")
 		return nil
 	}
-	fmt.Println()
 
-	// --- Rename phase ---
+	// --- Rename preview + confirm ---
 	ops, alreadyOK, noData := planRenames(f.Dir, show, lookup)
 
 	if len(ops) == 0 && alreadyOK > 0 {
-		fmt.Printf("  All %d files already correctly named.\n\n", alreadyOK)
+		fmt.Printf("\n  All %d files already correctly named.\n", alreadyOK)
 	} else if len(ops) > 0 {
+		fmt.Println()
 		if noData > 0 {
 			fmt.Printf("  (%d files skipped — no scraper match)\n\n", noData)
 		}
+		previewRenames(ops, len(ops))
 
 		if f.DryRun {
-			fmt.Printf("  Would rename %d files:\n\n", len(ops))
-			previewRenames(ops, len(ops))
 			return nil
 		}
 
-		if err := WriteRevertFile(f.Dir, ops); err != nil {
-			return fmt.Errorf("could not write revert file: %w", err)
+		var confirmed bool
+		if err := huh.NewConfirm().
+			Title(fmt.Sprintf("Rename %d files and write NFOs?", len(ops))).
+			Affirmative("Yes, proceed").
+			Negative("Cancel").
+			Value(&confirmed).
+			Run(); err != nil || !confirmed {
+			fmt.Println("Cancelled.")
+			return nil
 		}
+		fmt.Println()
 
-		var renameCount int
+		// Apply renames
 		for _, op := range ops {
 			if err := os.Rename(op.OldPath, op.NewPath); err != nil {
-				fmt.Printf("  ✗ %s\n    failed: %v\n", filepath.Base(op.OldPath), err)
-			} else {
-				fmt.Printf("  %s\n  → %s\n\n", filepath.Base(op.OldPath), filepath.Base(op.NewPath))
-				renameCount++
+				fmt.Printf("  ✗ rename failed: %s: %v\n", filepath.Base(op.OldPath), err)
 			}
 		}
-		fmt.Printf("  Renamed %d files.\n\n", renameCount)
 	}
 
 	// --- NFO phase ---
-	// If renames were applied, force-write NFOs: the old NFO was renamed to the
-	// new path alongside the video, so its content is stale and must be refreshed.
 	forceNFO := f.Force || len(ops) > 0
-	nfoCount, nfoSkipped, nfoMissing, _, createdNFOs := writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
-	if len(createdNFOs) > 0 {
-		_ = AppendCreated(f.Dir, createdNFOs)
-	}
+	writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
 
 	// --- Image phase ---
 	fmt.Println("\n── Images ──────────────────────────────────────────")
@@ -214,46 +212,19 @@ func RunWizard(f WizardFlags) error {
 		fmt.Printf("  No episode stills available from %s\n", s.IDType())
 	}
 
-	// --- Final confirmation ---
-	fmt.Printf("\n── Summary ─────────────────────────────────────────\n")
-	fmt.Printf("  NFOs written:  %d\n", nfoCount)
-	if nfoSkipped > 0 {
-		fmt.Printf("  Already exist: %d  (use --force to overwrite)\n", nfoSkipped)
-	}
-	if nfoMissing > 0 {
-		fmt.Printf("  Not matched:   %d\n", nfoMissing)
-	}
-	if unparsedCount > 0 {
-		fmt.Printf("  Unparsed:      %d\n", unparsedCount)
+	// --- Summary ---
+	fmt.Println("\n── Summary ─────────────────────────────────────────")
+	if len(ops) > 0 {
+		fmt.Printf("  Renamed:  %d files\n", len(ops))
 	}
 	if imgDown > 0 || imgFail > 0 {
-		fmt.Printf("  Images:        %d downloaded", imgDown)
+		fmt.Printf("  Images:   %d downloaded", imgDown)
 		if imgFail > 0 {
 			fmt.Printf(", %d failed", imgFail)
 		}
 		fmt.Println()
 	}
 	fmt.Println()
-
-	if nfoCount == 0 && nfoSkipped > 0 {
-		fmt.Println("  All NFOs already up to date. Run with --force to refresh.")
-		DeleteRevertFile(f.Dir)
-		return nil
-	}
-
-	var confirmed bool
-	err = huh.NewConfirm().
-		Title("Everything look good?").
-		Affirmative("Yes — keep changes").
-		Negative("No — revert renames").
-		Value(&confirmed).
-		Run()
-	if err != nil || !confirmed {
-		fmt.Println("\nReverting renames...")
-		return RevertRenames(f.Dir)
-	}
-
-	DeleteRevertFile(f.Dir)
 	fmt.Println("Done ✓")
 	return nil
 }
@@ -352,7 +323,7 @@ func buildLookup(episodes []Episode) map[int]map[int]*Episode {
 }
 
 func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
-	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int, created []string) {
+	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int) {
 
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -394,7 +365,6 @@ func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 		}
 		fmt.Printf("  ✓ wrote: %s\n", filepath.Base(nfoPath))
 		written++
-		created = append(created, nfoPath)
 		return nil
 	})
 	return
