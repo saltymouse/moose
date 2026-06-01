@@ -198,7 +198,10 @@ func RunWizard(f WizardFlags) error {
 	// If renames were applied, force-write NFOs: the old NFO was renamed to the
 	// new path alongside the video, so its content is stale and must be refreshed.
 	forceNFO := f.Force || len(ops) > 0
-	nfoCount, nfoSkipped, nfoMissing, _ := writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
+	nfoCount, nfoSkipped, nfoMissing, _, createdNFOs := writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
+	if len(createdNFOs) > 0 {
+		_ = AppendCreated(f.Dir, createdNFOs)
+	}
 
 	// --- Image phase ---
 	fmt.Println("\n── Images ──────────────────────────────────────────")
@@ -349,7 +352,7 @@ func buildLookup(episodes []Episode) map[int]map[int]*Episode {
 }
 
 func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
-	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int) {
+	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int, created []string) {
 
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -391,6 +394,7 @@ func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 		}
 		fmt.Printf("  ✓ wrote: %s\n", filepath.Base(nfoPath))
 		written++
+		created = append(created, nfoPath)
 		return nil
 	})
 	return
