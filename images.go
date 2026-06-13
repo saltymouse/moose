@@ -15,10 +15,8 @@ const downloadConcurrency = 4
 // downloadFile fetches url and writes it to destPath.
 // Returns (true, nil) when downloaded, (false, nil) when skipped (already exists).
 func downloadFile(url, destPath string, force bool) (downloaded bool, err error) {
-	if !force {
-		if _, err := os.Stat(destPath); err == nil {
-			return false, nil // already exists
-		}
+	if !force && fileExists(destPath) {
+		return false, nil // already exists
 	}
 	resp, err := http.Get(url)
 	if err != nil {

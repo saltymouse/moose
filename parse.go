@@ -30,8 +30,8 @@ var fallbacks = []struct {
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
 	// "E05" without a season prefix, e.g. "Show Name E05"
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
-	// "- 01"  or  "_01"  (separator + number near end)
-	{regexp.MustCompile(`[-_]\s*(\d{1,3})\s*(?:\.\w+)?$`), "dash/underscore+number"},
+	// "- 01"  or  "_01"  optionally followed by bracket tags, e.g. "[720p] [Clean]"
+	{regexp.MustCompile(`[-_]\s*(\d{1,3})\s*(?:[\[\(][^\]\)]*[\]\)]\s*)*(?:\.\w+)?$`), "dash/underscore+number"},
 	// "[01]" or "(01)"
 	{regexp.MustCompile(`[\[\(](\d{1,3})[\]\)]\s*(?:\.\w+)?$`), "bracketed number"},
 	// bare number at end: only 1–2 digits to avoid matching years/resolutions

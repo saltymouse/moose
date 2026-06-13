@@ -56,7 +56,11 @@ type tmdbShowResp struct {
 	OriginalLanguage string `json:"original_language"`
 	PosterPath       string `json:"poster_path"`
 	BackdropPath     string `json:"backdrop_path"`
-	Networks         []struct {
+	Status           string `json:"status"`
+	Genres           []struct {
+		Name string `json:"name"`
+	} `json:"genres"`
+	Networks []struct {
 		Name string `json:"name"`
 	} `json:"networks"`
 	Seasons []struct {
@@ -113,9 +117,13 @@ func (t *TMDbScraper) FetchShow(id int) (*Show, error) {
 		Name:             resp.Name,
 		Premiered:        resp.FirstAirDate,
 		Summary:          resp.Overview,
+		Status:           resp.Status,
 		OriginalLanguage: resp.OriginalLanguage,
 		PosterURL:        tmdbImageURL(resp.PosterPath),
 		FanartURL:        tmdbImageURL(resp.BackdropPath),
+	}
+	for _, g := range resp.Genres {
+		show.Genres = append(show.Genres, g.Name)
 	}
 	if len(resp.Networks) > 0 {
 		show.Network = &Network{Name: resp.Networks[0].Name}

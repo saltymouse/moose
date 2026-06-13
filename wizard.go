@@ -92,6 +92,14 @@ func RunWizard(f WizardFlags) error {
 		return err
 	}
 
+	// Search results omit details (TMDb: genres, status, network), so
+	// refetch the full record when the show didn't come from FetchShow.
+	if f.ShowID == 0 {
+		if full, ferr := s.FetchShow(show.ID); ferr == nil {
+			show = full
+		}
+	}
+
 	episodes, err := s.FetchEpisodes(show.ID)
 	if err != nil {
 		return fmt.Errorf("episode fetch: %w", err)
@@ -172,33 +180,38 @@ func RunWizard(f WizardFlags) error {
 			fmt.Printf("  (%d files skipped — no scraper match)\n\n", noData)
 		}
 		previewRenames(ops, len(ops))
+	}
 
-		if f.DryRun {
-			return nil
-		}
+	if f.DryRun {
+		return nil
+	}
 
-		var confirmed bool
-		if err := huh.NewConfirm().
-			Title(fmt.Sprintf("Rename %d files and write NFOs?", len(ops))).
-			Affirmative("Yes, proceed").
-			Negative("Cancel").
-			Value(&confirmed).
-			Run(); err != nil || !confirmed {
-			fmt.Println("Cancelled.")
-			return nil
-		}
-		fmt.Println()
+	title := "Write NFOs and download images?"
+	if len(ops) > 0 {
+		title = fmt.Sprintf("Rename %d files, write NFOs, and download images?", len(ops))
+	}
+	var confirmed bool
+	if err := huh.NewConfirm().
+		Title(title).
+		Affirmative("Yes, proceed").
+		Negative("Cancel").
+		Value(&confirmed).
+		Run(); err != nil || !confirmed {
+		fmt.Println("Cancelled.")
+		return nil
+	}
+	fmt.Println()
 
-		// Apply renames
-		for _, op := range ops {
-			if err := os.Rename(op.OldPath, op.NewPath); err != nil {
-				fmt.Printf("  ✗ rename failed: %s: %v\n", filepath.Base(op.OldPath), err)
-			}
+	// Apply renames
+	for _, op := range ops {
+		if err := os.Rename(op.OldPath, op.NewPath); err != nil {
+			fmt.Printf("  ✗ rename failed: %s: %v\n", filepath.Base(op.OldPath), err)
 		}
 	}
 
 	// --- NFO phase ---
 	forceNFO := f.Force || len(ops) > 0
+	writeShowNFO(f.Dir, show, s.IDType(), f.Force, false)
 	writeNFOs(f.Dir, show, lookup, s.IDType(), forceNFO, false)
 
 	// --- Image phase ---
@@ -322,6 +335,35 @@ func buildLookup(episodes []Episode) map[int]map[int]*Episode {
 	return lookup
 }
 
+func lookupEpisodes(lookup map[int]map[int]*Episode, season int, nums []int) []*Episode {
+	var eps []*Episode
+	for _, n := range nums {
+		if ep := lookup[season][n]; ep != nil {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
+// writeShowNFO writes the show-level tvshow.nfo into dir, skipping silently
+// if one already exists (unless force) so a richer NFO from another tool
+// isn't clobbered.
+func writeShowNFO(dir string, show *Show, idType string, force, dryRun bool) {
+	path := filepath.Join(dir, "tvshow.nfo")
+	if !force && fileExists(path) {
+		return
+	}
+	if dryRun {
+		fmt.Println("  ~ would write: tvshow.nfo")
+		return
+	}
+	if err := WriteShowNFO(path, show, idType); err != nil {
+		fmt.Printf("  ✗ error: tvshow.nfo: %v\n", err)
+		return
+	}
+	fmt.Println("  ✓ wrote: tvshow.nfo")
+}
+
 func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 	idType string, force, dryRun bool) (written, skipped, notFound, unparsed int) {
 
@@ -341,25 +383,23 @@ func writeNFOs(dir string, show *Show, lookup map[int]map[int]*Episode,
 		if fe.SeasonInferred {
 			fmt.Printf("  ~ season inferred as 1: %s\n", filepath.Base(path))
 		}
-		ep := lookup[fe.Season][fe.Episodes[0]]
-		if ep == nil {
+		eps := lookupEpisodes(lookup, fe.Season, fe.Episodes)
+		if len(eps) == 0 {
 			fmt.Printf("  ✗ not found: S%02dE%02d  %s\n", fe.Season, fe.Episodes[0], filepath.Base(path))
 			notFound++
 			return nil
 		}
 		nfoPath := path[:len(path)-len(ext)] + ".nfo"
-		if !force {
-			if _, statErr := os.Stat(nfoPath); statErr == nil {
-				skipped++
-				return nil
-			}
+		if !force && fileExists(nfoPath) {
+			skipped++
+			return nil
 		}
 		if dryRun {
 			fmt.Printf("  ~ would write: %s\n", filepath.Base(nfoPath))
 			written++
 			return nil
 		}
-		if err := WriteNFO(nfoPath, show, ep, idType); err != nil {
+		if err := WriteNFO(nfoPath, show, eps, idType); err != nil {
 			fmt.Printf("  ✗ error: %s: %v\n", filepath.Base(nfoPath), err)
 			return nil
 		}

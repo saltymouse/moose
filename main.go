@@ -94,6 +94,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Search results omit details (TMDb: genres, status, network), so
+	// refetch the full record when the show didn't come from FetchShow.
+	if *showID == 0 {
+		if full, ferr := s.FetchShow(show.ID); ferr == nil {
+			show = full
+		}
+	}
 	fmt.Printf("Using: %s  (ID %d, scraper: %s)\n\n", show.Name, show.ID, s.IDType())
 
 	episodes, err := s.FetchEpisodes(show.ID)
@@ -114,6 +122,7 @@ func main() {
 	}
 
 	fmt.Println("── NFO ─────────────────────────────────────────────")
+	writeShowNFO(dir, show, s.IDType(), *force, *dryRun)
 	written, skipped, notFound, _ := writeNFOs(dir, show, lookup, s.IDType(), *force, *dryRun)
 
 	// Also track unparsed files in flag mode (wizard mode skips them silently).

@@ -15,13 +15,18 @@ type RenameOp struct {
 }
 
 // targetName builds the canonical filename for an episode (without directory).
-// Multi-episode files get combined tokens: S01E01E02E03.
-func targetName(show *Show, ep *Episode, fe FileEpisode, ext string) string {
+// Multi-episode files get combined tokens (S01E01E02E03) and all episode titles joined with ・.
+func targetName(show *Show, eps []*Episode, fe FileEpisode, ext string) string {
+	ep := eps[0]
 	token := fmt.Sprintf("S%02dE%02d", ep.Season, ep.Number)
 	for _, n := range fe.Episodes[1:] {
 		token += fmt.Sprintf("E%02d", n)
 	}
-	return fmt.Sprintf("%s %s %s%s", show.Name, token, sanitizeTitle(ep.Name), ext)
+	titles := make([]string, len(eps))
+	for i, e := range eps {
+		titles[i] = sanitizeTitle(e.Name)
+	}
+	return fmt.Sprintf("%s %s %s%s", show.Name, token, strings.Join(titles, "・"), ext)
 }
 
 func sanitizeTitle(s string) string {
@@ -58,13 +63,13 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 		if !ok {
 			return nil
 		}
-		ep := lookup[fe.Season][fe.Episodes[0]]
-		if ep == nil {
+		eps := lookupEpisodes(lookup, fe.Season, fe.Episodes)
+		if len(eps) == 0 {
 			noData++
 			return nil
 		}
-		want := targetName(show, ep, fe, ext)
-		if filepath.Base(path) == want {
+		want := targetName(show, eps, fe, ext)
+		if namesEqual(filepath.Base(path), want) {
 			alreadyOK++
 		} else {
 			ops = append(ops, RenameOp{
@@ -81,7 +86,7 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 				continue // subtitle file doesn't exist
 			}
 			newSub := filepath.Join(filepath.Dir(path), wantBase+subExt)
-			if oldSub != newSub {
+			if !namesEqual(oldSub, newSub) {
 				ops = append(ops, RenameOp{OldPath: oldSub, NewPath: newSub})
 			}
 		}

@@ -21,6 +21,8 @@ type Show struct {
 	Name             string   `json:"name"`
 	Premiered        string   `json:"premiered"`
 	Summary          string   `json:"summary"`
+	Status           string   `json:"status"`
+	Genres           []string `json:"genres"`
 	OriginalLanguage string   // ISO 639-1 code; populated by TMDb only
 	Network          *Network `json:"network"`
 	WebChannel       *Network `json:"webChannel"`
@@ -124,6 +126,9 @@ func get(endpoint string, v any) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode >= 500 {
+			return fmt.Errorf("HTTP %d from %s (server error — try again in a moment)", resp.StatusCode, endpoint)
+		}
 		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, endpoint)
 	}
 	return json.NewDecoder(resp.Body).Decode(v)
