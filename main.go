@@ -12,6 +12,7 @@ import (
 var videoExts = map[string]bool{
 	".mp4": true, ".mkv": true, ".avi": true,
 	".m4v": true, ".mov": true, ".ts":  true,
+	".webm": true,
 }
 
 func main() {
