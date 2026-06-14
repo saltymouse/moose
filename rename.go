@@ -84,13 +84,11 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 		stem := strings.TrimSuffix(filepath.Base(path), ext)
 		wantBase := strings.TrimSuffix(want, ext)
 		for _, subExt := range companionExts {
-			oldSub, found := findCompanion(filepath.Dir(path), stem, subExt)
-			if !found {
-				continue
-			}
-			newSub := filepath.Join(filepath.Dir(path), wantBase+subExt)
-			if !namesEqual(filepath.Base(oldSub), filepath.Base(newSub)) {
-				ops = append(ops, RenameOp{OldPath: oldSub, NewPath: newSub})
+			for _, c := range findCompanions(filepath.Dir(path), stem, subExt) {
+				newSub := filepath.Join(filepath.Dir(path), wantBase+c.infix+subExt)
+				if !namesEqual(filepath.Base(c.path), filepath.Base(newSub)) {
+					ops = append(ops, RenameOp{OldPath: c.path, NewPath: newSub})
+				}
 			}
 		}
 		return nil
