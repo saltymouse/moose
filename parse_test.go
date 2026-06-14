@@ -38,6 +38,9 @@ func TestParseFilename(t *testing.T) {
 		{"Kingyo.Club.Ep.01.mkv", 1, []int{1}, true},  // separator between EP and number
 		{"Kingyo.Club.Ep.10.mkv", 1, []int{10}, true}, // two-digit
 		{"Some Show Ep 03.mkv", 1, []int{3}, true},    // space separator
+		{"Hatsukoi.E01[STAY GOLD].mp4", 1, []int{1}, true},  // E-prefix followed by a bracket tag
+		{"Hatsukoi.E08[ONLY LOVE].mp4", 1, []int{8}, true},
+		{"Show.EP05(720p).mkv", 1, []int{5}, true}, // EP-prefix followed by a paren tag
 
 		// --- separator + number near end, optionally followed by (tags) ---
 		{"Some Show - 05 [720p].mkv", 1, []int{5}, true},

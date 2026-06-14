@@ -35,9 +35,9 @@ var fallbacks = []struct {
 	// separator may sit between EP and the number
 	// "Episode 1" / "Episode.01" / "Episode01" — spelled-out word, any separator, number may sit mid-name
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])Episode[\s._-]*(\d{1,3})(?:\D|$)`), "Episode-word"},
-	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP[\s._-]*(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
-	// "E05" without a season prefix, e.g. "Show Name E05"
-	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP[\s._-]*(\d{1,3})(?:[\s._\-\[\(]|$)`), "EP-prefix"},
+	// "E05" without a season prefix, e.g. "Show Name E05" or "Hatsukoi.E05[Title]"
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._\-\[\(]|$)`), "E-only"},
 	// "- 01", "_01" or " 01" optionally followed by bracket tags, e.g. "Bartender 01 (848x480)" / "[720p] [Clean]"
 	{regexp.MustCompile(`[\s_-]\s*(\d{1,3})\s*(?:[\[\(][^\]\)]*[\]\)]\s*)*(?:\.\w+)?$`), "separator+number"},
 	// "[01]" or "(01)"
