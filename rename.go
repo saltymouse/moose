@@ -77,16 +77,19 @@ func planRenames(dir string, show *Show, lookup map[int]map[int]*Episode) (ops [
 				NewPath: filepath.Join(filepath.Dir(path), want),
 			})
 		}
-		// Check for co-located subtitle files with the same base name.
-		base := strings.TrimSuffix(path, ext)
+		// Check for co-located subtitle files sharing the video's base name.
+		// Match case-insensitively: subtitles often differ only in
+		// capitalization (Doctor.x... vs Doctor.X...), which os.Stat would miss
+		// on a case-sensitive filesystem.
+		stem := strings.TrimSuffix(filepath.Base(path), ext)
 		wantBase := strings.TrimSuffix(want, ext)
 		for _, subExt := range companionExts {
-			oldSub := base + subExt
-			if _, serr := os.Stat(oldSub); serr != nil {
-				continue // subtitle file doesn't exist
+			oldSub, found := findCompanion(filepath.Dir(path), stem, subExt)
+			if !found {
+				continue
 			}
 			newSub := filepath.Join(filepath.Dir(path), wantBase+subExt)
-			if !namesEqual(oldSub, newSub) {
+			if !namesEqual(filepath.Base(oldSub), filepath.Base(newSub)) {
 				ops = append(ops, RenameOp{OldPath: oldSub, NewPath: newSub})
 			}
 		}
