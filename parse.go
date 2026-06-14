@@ -31,10 +31,11 @@ var fallbacks = []struct {
 	re   *regexp.Regexp
 	desc string
 }{
-	// "EP01" or "EP1" — common in Asian web-rips (no season prefix)
+	// "EP01" / "EP1" / "Ep.01" — common in Asian web-rips (no season prefix); a
+	// separator may sit between EP and the number
 	// "Episode 1" / "Episode.01" / "Episode01" — spelled-out word, any separator, number may sit mid-name
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])Episode[\s._-]*(\d{1,3})(?:\D|$)`), "Episode-word"},
-	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP[\s._-]*(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
 	// "E05" without a season prefix, e.g. "Show Name E05"
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
 	// "- 01", "_01" or " 01" optionally followed by bracket tags, e.g. "Bartender 01 (848x480)" / "[720p] [Clean]"
