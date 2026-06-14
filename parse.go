@@ -16,6 +16,11 @@ type FileEpisode struct {
 // seBlock matches the full SxxExxExx... token, e.g. "S01E03E04E05"
 var seBlock = regexp.MustCompile(`(?i)S(\d{1,2})((?:E\d{1,3})+)`)
 
+// sEPBlock matches "S<season>EP<episode>", e.g. "S1EP01" / "S01EP10".
+// Distinct from seBlock because the marker is "EP" (not "E"), so the season
+// and episode are captured separately rather than via the E-block.
+var sEPBlock = regexp.MustCompile(`(?i)S(\d{1,2})EP(\d{1,3})`)
+
 // singleE extracts individual episode numbers from an E-block
 var singleE = regexp.MustCompile(`(?i)E(\d{1,3})`)
 
@@ -27,17 +32,20 @@ var fallbacks = []struct {
 	desc string
 }{
 	// "EP01" or "EP1" — common in Asian web-rips (no season prefix)
-	// "Episode 1" / "Episode01" — spelled-out word, number may sit mid-name
-	{regexp.MustCompile(`(?i)(?:^|[\s._-])Episode\s*(\d{1,3})(?:\D|$)`), "Episode-word"},
+	// "Episode 1" / "Episode.01" / "Episode01" — spelled-out word, any separator, number may sit mid-name
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])Episode[\s._-]*(\d{1,3})(?:\D|$)`), "Episode-word"},
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
 	// "E05" without a season prefix, e.g. "Show Name E05"
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
-	// "- 01"  or  "_01"  optionally followed by bracket tags, e.g. "[720p] [Clean]"
-	{regexp.MustCompile(`[-_]\s*(\d{1,3})\s*(?:[\[\(][^\]\)]*[\]\)]\s*)*(?:\.\w+)?$`), "dash/underscore+number"},
+	// "- 01", "_01" or " 01" optionally followed by bracket tags, e.g. "Bartender 01 (848x480)" / "[720p] [Clean]"
+	{regexp.MustCompile(`[\s_-]\s*(\d{1,3})\s*(?:[\[\(][^\]\)]*[\]\)]\s*)*(?:\.\w+)?$`), "separator+number"},
 	// "[01]" or "(01)"
 	{regexp.MustCompile(`[\[\(](\d{1,3})[\]\)]\s*(?:\.\w+)?$`), "bracketed number"},
 	// bare number at end: only 1–2 digits to avoid matching years/resolutions
 	{regexp.MustCompile(`\s(\d{1,2})\s*(?:\.\w+)?$`), "trailing number"},
+	// last resort: a number flanked by separators mid-name, e.g. "Ao_No_Jidai_01_hotelpapers"
+	// requires a separator on BOTH sides so "2011"/"720p"-style tokens don't match
+	{regexp.MustCompile(`(?:^|[\s._-])(\d{1,3})[\s._-]`), "delimited number"},
 }
 
 func ParseFilename(name string) (FileEpisode, bool) {
@@ -55,6 +63,16 @@ func ParseFilename(name string) (FileEpisode, bool) {
 		}
 		if len(eps) > 0 {
 			return FileEpisode{Season: season, Episodes: eps}, true
+		}
+	}
+
+	// Primary: "S<season>EP<episode>" (e.g. "S1EP01"). Checked before the
+	// fallbacks so a leading title number (like "99.9") isn't grabbed instead.
+	if m := sEPBlock.FindStringSubmatch(stem); m != nil {
+		season, _ := strconv.Atoi(m[1])
+		ep, _ := strconv.Atoi(m[2])
+		if ep > 0 {
+			return FileEpisode{Season: season, Episodes: []int{ep}}, true
 		}
 	}
 
