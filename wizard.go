@@ -154,7 +154,7 @@ func RunWizard(f WizardFlags) error {
 		fmt.Printf("  ✓ Matched to episode pattern: %d\n", parsedCount)
 	}
 	if unparsedCount > 0 {
-		fmt.Printf("  ✗ Could not parse episode number: %d\n", unparsedCount)
+		fmt.Printf("  ✗ Could not parse episode number from %d file(s):\n", unparsedCount)
 		for _, r := range scanResults {
 			if !r.parsed {
 				fmt.Printf("      %s\n", filepath.Base(r.path))

@@ -27,6 +27,8 @@ var fallbacks = []struct {
 	desc string
 }{
 	// "EP01" or "EP1" — common in Asian web-rips (no season prefix)
+	// "Episode 1" / "Episode01" — spelled-out word, number may sit mid-name
+	{regexp.MustCompile(`(?i)(?:^|[\s._-])Episode\s*(\d{1,3})(?:\D|$)`), "Episode-word"},
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])EP(\d{1,3})(?:[\s._-]|$)`), "EP-prefix"},
 	// "E05" without a season prefix, e.g. "Show Name E05"
 	{regexp.MustCompile(`(?i)(?:^|[\s._-])E(\d{1,3})(?:[\s._-]|$)`), "E-only"},
