@@ -28,6 +28,7 @@ type Show struct {
 	WebChannel       *Network `json:"webChannel"`
 	PosterURL        string   // populated by both scrapers
 	FanartURL        string   // populated by TMDb only
+	EpisodeCount     int      // total episodes; populated by FetchShow (TMDb only), used to break ties between duplicate entries
 }
 
 func (s *Show) NetworkName() string {

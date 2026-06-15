@@ -125,6 +125,9 @@ func (t *TMDbScraper) FetchShow(id int) (*Show, error) {
 	for _, g := range resp.Genres {
 		show.Genres = append(show.Genres, g.Name)
 	}
+	for _, s := range resp.Seasons {
+		show.EpisodeCount += s.EpisodeCount
+	}
 	if len(resp.Networks) > 0 {
 		show.Network = &Network{Name: resp.Networks[0].Name}
 	}

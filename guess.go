@@ -58,19 +58,61 @@ func GuessShow(dir string, s Scraper) (*Show, error) {
 
 	// Year present — try an exact year match before prompting.
 	if year != "" {
+		var matches []SearchResult
 		for _, r := range results {
 			if strings.HasPrefix(r.Show.Premiered, year) {
-				show := r.Show
-				fmt.Printf("Matched: %s  (ID %d, premiered %s)\n\n",
-					show.Name, show.ID, show.Premiered)
-				return &show, nil
+				matches = append(matches, r)
 			}
 		}
-		fmt.Printf("No results premiered in %s — showing all matches.\n\n", year)
+		switch len(matches) {
+		case 1:
+			show := matches[0].Show
+			fmt.Printf("Matched: %s  (ID %d, premiered %s)\n\n",
+				show.Name, show.ID, show.Premiered)
+			return &show, nil
+		case 0:
+			fmt.Printf("No results premiered in %s — showing all matches.\n\n", year)
+		default:
+			// Several entries share the premiere year. This is common on TMDb
+			// where a populated show and an empty stub coexist; prefer the one
+			// that actually has episodes before falling back to a prompt.
+			if best := mostPopulated(matches, s); best != nil {
+				fmt.Printf("Matched: %s  (ID %d, premiered %s, %d episodes)\n\n",
+					best.Name, best.ID, best.Premiered, best.EpisodeCount)
+				return best, nil
+			}
+			fmt.Printf("Multiple entries premiered in %s — showing all matches.\n\n", year)
+			return pickShow(matches)
+		}
 	}
 
 	// Multiple results and no automatic match — let the user pick.
 	return pickShow(results)
+}
+
+// mostPopulated fetches full details for tied candidates and returns the one
+// with the most episodes. It returns nil when it can't break the tie — no
+// candidate has episode data, or two share the top count — so the caller can
+// fall back to prompting.
+func mostPopulated(results []SearchResult, s Scraper) *Show {
+	var best *Show
+	bestCount, tie := 0, false
+	for _, r := range results {
+		full, err := s.FetchShow(r.Show.ID)
+		if err != nil {
+			continue
+		}
+		switch {
+		case full.EpisodeCount > bestCount:
+			best, bestCount, tie = full, full.EpisodeCount, false
+		case full.EpisodeCount == bestCount:
+			tie = true
+		}
+	}
+	if best == nil || bestCount == 0 || tie {
+		return nil
+	}
+	return best
 }
 
 // pickShow presents an interactive huh selector for a slice of search results.
